@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -46,13 +47,17 @@ func DeclareAndBind(
 		return nil, amqp.Queue{}, fmt.Errorf("unknown SimpleQueueType")
 	}
 
+	args := amqp.Table{
+		"x-dead-letter-exchange": routing.DeadLetterExchange,
+	}
+
 	newQueue, err := clientChannel.QueueDeclare(
 		queueName,
 		durable,
 		autoDelete,
 		exclusive,
 		false,
-		nil,
+		args,
 	)
 	if err != nil {
 		return nil, amqp.Queue{}, fmt.Errorf("could not declare queue: %v", err)

@@ -49,11 +49,11 @@ func main() {
 
 	err = pubsub.SubscribeJSON(
 		conn,
-		string(routing.ExchangePerilTopic),
+		routing.ExchangePerilTopic,
 		routing.ArmyMovesPrefix+"."+gs.GetUsername(),
 		routing.ArmyMovesPrefix+".*",
 		pubsub.Transient,
-		handlerMove(gs),
+		handlerMove(gs, publishCh),
 	)
 	if err != nil {
 		log.Fatalf("could not subscribe to army moves: %v", err)
@@ -69,6 +69,18 @@ func main() {
 	)
 	if err != nil {
 		log.Fatalf("could not subscribe: %v", err)
+	}
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.WarRecognitionsPrefix,
+		routing.WarRecognitionsPrefix+".*",
+		pubsub.Durable,
+		handlerWar(gs),
+	)
+	if err != nil {
+		log.Fatalf("could not subscribe to war declarations: %v", err)
 	}
 
 	for {
@@ -90,7 +102,7 @@ func main() {
 				fmt.Println(err)
 				continue
 			}
-			// TODO: publish the move
+			// Publish the move
 			err = pubsub.PublishJSON(
 				publishCh,
 				routing.ExchangePerilTopic,
