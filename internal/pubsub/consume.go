@@ -90,14 +90,14 @@ func SubscribeJSON[T any](
 		return fmt.Errorf("could not declare and bind queue: %v", err)
 	}
 
-	newChan, err := subCh.Consume(subQueue.Name, "", false, false, false, false, nil)
+	msgChan, err := subCh.Consume(subQueue.Name, "", false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("could not consume messages: %v", err)
 	}
 
 	go func() {
 		defer subCh.Close()
-		for ch := range newChan {
+		for ch := range msgChan {
 			var msg T
 			err := json.Unmarshal(ch.Body, &msg)
 			if err != nil {
@@ -108,13 +108,10 @@ func SubscribeJSON[T any](
 			switch ackNack {
 			case Ack:
 				ch.Ack(false)
-				log.Println("Ack occured!")
 			case NackRequeue:
 				ch.Nack(false, true)
-				log.Println("NackRequeue occured!")
 			case NackDiscard:
 				ch.Nack(false, false)
-				log.Println("NackDiscard occured!")
 			}
 		}
 	}()
