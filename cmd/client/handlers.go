@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
@@ -68,22 +67,4 @@ func handlerWar(gs *gamelogic.GameState, publishCh *amqp.Channel) func(rw gamelo
 		fmt.Println("error: unknown war outcome")
 		return pubsub.NackDiscard
 	}
-}
-
-func publishGameLog(publishCh *amqp.Channel, usr, msg string) pubsub.Acktype {
-	err := pubsub.PublishGob(
-		publishCh,
-		routing.ExchangePerilTopic,
-		routing.GameLogSlug+"."+usr,
-		routing.GameLog{
-			CurrentTime: time.Now(),
-			Message:     msg,
-			Username:    usr,
-		},
-	)
-	if err != nil {
-		fmt.Printf("error: %s\n", err)
-		return pubsub.NackRequeue
-	}
-	return pubsub.Ack
 }

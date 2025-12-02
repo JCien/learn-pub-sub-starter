@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
@@ -132,4 +133,22 @@ func main() {
 	//signal.Notify(signalChan, os.Interrupt)
 	//<-signalChan
 	//fmt.Println("RabbitMQ connection closed.")
+}
+
+func publishGameLog(publishCh *amqp.Channel, usr, msg string) pubsub.Acktype {
+	err := pubsub.PublishGob(
+		publishCh,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug+"."+usr,
+		routing.GameLog{
+			CurrentTime: time.Now(),
+			Message:     msg,
+			Username:    usr,
+		},
+	)
+	if err != nil {
+		fmt.Printf("error: %s\n", err)
+		return pubsub.NackRequeue
+	}
+	return pubsub.Ack
 }
