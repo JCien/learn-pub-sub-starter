@@ -29,17 +29,17 @@ func main() {
 	}
 
 	// Creates and declares a topic exchange queue
-	_, q, err := pubsub.DeclareAndBind(
+	err = pubsub.SubscribeGob(
 		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		routing.GameLogSlug+".*",
 		pubsub.Durable,
+		handlerLogs(),
 	)
 	if err != nil {
-		log.Fatalf("could not subscribe to pause: %v", err)
+		log.Fatalf("could not start consuming logs: %v", err)
 	}
-	log.Printf("Queue %v declared and bound!\n", q.Name)
 
 	// Prints the Server Help
 	gamelogic.PrintServerHelp()

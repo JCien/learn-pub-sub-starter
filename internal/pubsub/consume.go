@@ -1,9 +1,10 @@
 package pubsub
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -79,6 +80,55 @@ func SubscribeJSON[T any](
 	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
 	handler func(T) Acktype,
 ) error {
+	return subscribe(
+		conn,
+		exchange,
+		queueName,
+		key,
+		queueType,
+		handler,
+		func(data []byte) (T, error) {
+			var msg T
+			err := json.Unmarshal(data, &msg)
+			return msg, err
+		},
+	)
+}
+
+func SubscribeGob[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) Acktype,
+) error {
+	return subscribe(
+		conn,
+		exchange,
+		queueName,
+		key,
+		queueType,
+		handler,
+		func(data []byte) (T, error) {
+			buffer := bytes.NewBuffer(data)
+			decoder := gob.NewDecoder(buffer)
+			var newMsg T
+			err := decoder.Decode(&newMsg)
+			return newMsg, err
+		},
+	)
+}
+
+func subscribe[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) Acktype,
+	unmarshaller func([]byte) (T, error),
+) error {
 	subCh, subQueue, err := DeclareAndBind(
 		conn,
 		exchange,
@@ -98,14 +148,12 @@ func SubscribeJSON[T any](
 	go func() {
 		defer subCh.Close()
 		for ch := range msgChan {
-			var msg T
-			err := json.Unmarshal(ch.Body, &msg)
+			target, err := unmarshaller(ch.Body)
 			if err != nil {
-				log.Fatalf("error unmarshalling: %v", err)
+				fmt.Printf("could not unmarshal message: %v\n", err)
 				continue
 			}
-			ackNack := handler(msg)
-			switch ackNack {
+			switch handler(target) {
 			case Ack:
 				ch.Ack(false)
 			case NackRequeue:
@@ -115,6 +163,5 @@ func SubscribeJSON[T any](
 			}
 		}
 	}()
-
 	return nil
 }
