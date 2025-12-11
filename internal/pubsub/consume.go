@@ -140,6 +140,11 @@ func subscribe[T any](
 		return fmt.Errorf("could not declare and bind queue: %v", err)
 	}
 
+	err = subCh.Qos(10, 0, false)
+	if err != nil {
+		return fmt.Errorf("could not prefetch messages: %v", err)
+	}
+
 	msgChan, err := subCh.Consume(subQueue.Name, "", false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("could not consume messages: %v", err)

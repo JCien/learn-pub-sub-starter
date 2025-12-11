@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -119,7 +120,25 @@ func main() {
 		case "help":
 			gamelogic.PrintClientHelp()
 		case "spam":
-			fmt.Println("Spamming not allowed yet!")
+			if len(words) < 2 {
+				fmt.Println("usage: spam <number of times>")
+				continue
+			}
+
+			n, err := strconv.Atoi(words[1])
+			if err != nil {
+				fmt.Printf("error: %s is not a valid number\n", words[1])
+				continue
+			}
+
+			for range n {
+				malMsg := gamelogic.GetMaliciousLog()
+				err = publishGameLog(publishCh, userName, malMsg)
+				if err != nil {
+					fmt.Printf("error publishing malicious log: %s\n", err)
+				}
+			}
+			fmt.Printf("Published %v malicious logs\n", n)
 		case "quit":
 			gamelogic.PrintQuit()
 			return
@@ -135,8 +154,8 @@ func main() {
 	//fmt.Println("RabbitMQ connection closed.")
 }
 
-func publishGameLog(publishCh *amqp.Channel, usr, msg string) pubsub.Acktype {
-	err := pubsub.PublishGob(
+func publishGameLog(publishCh *amqp.Channel, usr, msg string) error {
+	return pubsub.PublishGob(
 		publishCh,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug+"."+usr,
@@ -146,9 +165,4 @@ func publishGameLog(publishCh *amqp.Channel, usr, msg string) pubsub.Acktype {
 			Username:    usr,
 		},
 	)
-	if err != nil {
-		fmt.Printf("error: %s\n", err)
-		return pubsub.NackRequeue
-	}
-	return pubsub.Ack
 }
